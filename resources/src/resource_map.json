@@ -1,0 +1,19 @@
+
+{"friendlyVersion": "VERSION",
+ "versionDefName": "APP_RESOURCES",
+ "media": [
+        {
+        "type": "font",
+        "characterRegex": "[:0-9]",
+        "defName": "FONT_DEJAVU_SANS_BOLD_SUBSET_32",
+        "file": "fonts/DejaVuSans-Bold.ttf"
+        },
+        {
+        "type": "font",
+        "characterRegex": "[:0-9]",
+        "defName": "FONT_DEJAVU_SANS_SUBSET_20",
+        "file": "fonts/DejaVuSans.ttf"
+        }
+
+ ]
+}
