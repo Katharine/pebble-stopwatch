@@ -23,7 +23,9 @@ int num_laps = 0;
 
 // The documentation claims this is defined, but it is not.
 // Define it here for now.
-#define APP_TIMER_INVALID_HANDLE 0xDEADBEEF
+#ifndef APP_TIMER_INVALID_HANDLE
+    #define APP_TIMER_INVALID_HANDLE 0xDEADBEEF
+#endif
 
 time_t start_time = 0;
 time_t elapsed_time = 0;
