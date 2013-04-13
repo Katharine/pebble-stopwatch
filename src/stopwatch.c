@@ -11,13 +11,15 @@ PBL_APP_INFO(MY_UUID,
              APP_INFO_STANDARD_APP);
 
 Window window;
+AppContextRef app;
+
+// Main display
 TextLayer big_time_layer;
 TextLayer seconds_time_layer;
 Layer line_layer;
 
-AppTimerHandle timer_handle;
-AppContextRef app;
 
+// Lap time display
 #define LAP_TIME_SIZE 4
 char lap_times[LAP_TIME_SIZE][9] = {"00:00:00", "00:01:00", "00:02:00", "00:03:00"};
 TextLayer lap_layers[LAP_TIME_SIZE]; // an extra temporary layer
@@ -30,6 +32,7 @@ int last_lap_time = 0;
     #define APP_TIMER_INVALID_HANDLE 0xDEADBEEF
 #endif
 
+// Actually keeping track of time
 time_t start_time = 0;
 time_t elapsed_time = 0;
 bool started = false;
@@ -56,67 +59,57 @@ void save_lap_time(int seconds);
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window);
 void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier);
 
-void config_provider(ClickConfig **config, Window *window)
-{
-    config[BUTTON_ID_SELECT]->click.handler = (ClickHandler)toggle_stopwatch_handler;
-    config[BUTTON_ID_DOWN]->click.handler = (ClickHandler)reset_stopwatch_handler;
-    config[BUTTON_ID_UP]->click.handler = (ClickHandler)lap_time_handler;
-    (void)window;
-}
-
 void handle_init(AppContextRef ctx) {
-  app = ctx;
+    app = ctx;
 
+    window_init(&window, "Stopwatch");
+    window_stack_push(&window, true /* Animated */);
+    window_set_background_color(&window, GColorBlack);
+    window_set_fullscreen(&window, false);
 
+    resource_init_current_app(&APP_RESOURCES);
 
-  window_init(&window, "Stopwatch");
-  window_stack_push(&window, true /* Animated */);
-  window_set_background_color(&window, GColorBlack);
-  window_set_fullscreen(&window, false);
+    // Arrange for user input.
+    window_set_click_config_provider(&window, (ClickConfigProvider) config_provider);
 
-  resource_init_current_app(&APP_RESOURCES);
+    // Get our fonts
+    GFont big_font = fonts_load_custom_font(resource_get_handle(FONT_BIG_TIME));
+    GFont seconds_font = fonts_load_custom_font(resource_get_handle(FONT_SECONDS));
+    GFont laps_font = seconds_font;
 
-  // Arrange for user input.
-  window_set_click_config_provider(&window, (ClickConfigProvider) config_provider);
+    // Root layer
+    Layer *root_layer = window_get_root_layer(&window);
 
-  // Get our fonts
-  GFont big_font = fonts_load_custom_font(resource_get_handle(FONT_BIG_TIME));
-  GFont seconds_font = fonts_load_custom_font(resource_get_handle(FONT_SECONDS));
-  GFont laps_font = seconds_font;
+    // Set up the big timer.
+    text_layer_init(&big_time_layer, GRect(0, 5, 105, 35));
+    text_layer_set_background_color(&big_time_layer, GColorBlack);
+    text_layer_set_font(&big_time_layer, big_font);
+    text_layer_set_text_color(&big_time_layer, GColorWhite);
+    text_layer_set_text(&big_time_layer, "00:00");
+    text_layer_set_text_alignment(&big_time_layer, GTextAlignmentRight);
+    layer_add_child(root_layer, &big_time_layer.layer);
 
-  // Root layer
-  Layer *root_layer = window_get_root_layer(&window);
+    text_layer_init(&seconds_time_layer, GRect(107, 17, 33, 35));
+    text_layer_set_background_color(&seconds_time_layer, GColorBlack);
+    text_layer_set_font(&seconds_time_layer, seconds_font);
+    text_layer_set_text_color(&seconds_time_layer, GColorWhite);
+    text_layer_set_text(&seconds_time_layer, ":00");
+    layer_add_child(root_layer, &seconds_time_layer.layer);
 
-  // Set up the big timer.
-  text_layer_init(&big_time_layer, GRect(0, 5, 105, 35));
-  text_layer_set_background_color(&big_time_layer, GColorBlack);
-  text_layer_set_font(&big_time_layer, big_font);
-  text_layer_set_text_color(&big_time_layer, GColorWhite);
-  text_layer_set_text(&big_time_layer, "00:00");
-  text_layer_set_text_alignment(&big_time_layer, GTextAlignmentRight);
-  layer_add_child(root_layer, &big_time_layer.layer);
+    // Draw our nice line.
+    layer_init(&line_layer, GRect(0, 50, 144, 2));
+    line_layer.update_proc = &draw_line;
+    layer_add_child(root_layer, &line_layer);
 
-  text_layer_init(&seconds_time_layer, GRect(107, 17, 33, 35));
-  text_layer_set_background_color(&seconds_time_layer, GColorBlack);
-  text_layer_set_font(&seconds_time_layer, seconds_font);
-  text_layer_set_text_color(&seconds_time_layer, GColorWhite);
-  text_layer_set_text(&seconds_time_layer, ":00");
-  layer_add_child(root_layer, &seconds_time_layer.layer);
-
-  // Draw our nice line.
-  layer_init(&line_layer, GRect(0, 50, 144, 2));
-  line_layer.update_proc = &draw_line;
-  layer_add_child(root_layer, &line_layer);
-
-  // Set up the lap time layers. These will be made visible later.
-  for(int i = 0; i < LAP_TIME_SIZE; ++i) {
-    text_layer_init(&lap_layers[i], GRect(-139, 57, 139, 30));
-    text_layer_set_background_color(&lap_layers[i], GColorClear);
-    text_layer_set_font(&lap_layers[i], laps_font);
-    text_layer_set_text_color(&lap_layers[i], GColorWhite);
-    text_layer_set_text(&lap_layers[i], lap_times[i]);
-    layer_add_child(root_layer, &lap_layers[i].layer);
-  }
+    // Set up the lap time layers. These will be made visible later.
+    for(int i = 0; i < LAP_TIME_SIZE; ++i) {
+        text_layer_init(&lap_layers[i], GRect(-139, 57, 139, 30));
+        text_layer_set_background_color(&lap_layers[i], GColorClear);
+        text_layer_set_font(&lap_layers[i], laps_font);
+        text_layer_set_text_color(&lap_layers[i], GColorWhite);
+        text_layer_set_text(&lap_layers[i], lap_times[i]);
+        layer_add_child(root_layer, &lap_layers[i].layer);
+    }
 }
 
 
@@ -139,8 +132,7 @@ time_t time_seconds() {
     return seconds;
 }
 
-void stop_stopwatch()
-{
+void stop_stopwatch() {
     started = false;
     if(update_timer != APP_TIMER_INVALID_HANDLE) {
         if(app_timer_cancel_event(app, update_timer)) {
@@ -149,8 +141,7 @@ void stop_stopwatch()
     }
 }
 
-void start_stopwatch()
-{
+void start_stopwatch() {
     // Hack: set the start time to now minus the previously recorded time.
     // This lets us pause and unpause the timer.
     start_time = time_seconds() - elapsed_time;
@@ -159,8 +150,7 @@ void start_stopwatch()
     update_timer = app_timer_send_event(app, 1000, TIMER_UPDATE);
 }
 
-void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window)
-{
+void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
     if(started) {
         stop_stopwatch();
     } else {
@@ -168,8 +158,7 @@ void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window)
     }
 }
 
-void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window)
-{
+void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
     elapsed_time = 0;
     start_time = time_seconds();
     last_lap_time = 0;
@@ -185,8 +174,7 @@ void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window)
     next_lap_layer = 0;
 }
 
-void lap_time_handler(ClickRecognizerRef recognizer, Window *window)
-{
+void lap_time_handler(ClickRecognizerRef recognizer, Window *window) {
     int t = elapsed_time - last_lap_time;
     last_lap_time = elapsed_time;
     save_lap_time(t);
@@ -207,8 +195,7 @@ void itoa2(int num, char* buffer) {
     buffer[1] = digits[num % 10];
 }
 
-void update_stopwatch()
-{
+void update_stopwatch() {
     static char big_time[] = "00:00";
     static char seconds_time[] = ":00";
     if(started) {
@@ -235,8 +222,7 @@ void update_stopwatch()
     text_layer_set_text(&seconds_time_layer, seconds_time);
 }
 
-void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier)
-{
+void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier) {
     GRect origin = layer_get_frame(layer);
     *target = origin;
     target->origin.y += target->size.h * distance_multiplier;
@@ -245,8 +231,7 @@ void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, 
     animation_set_curve(&animation->animation, AnimationCurveLinear);
 }
 
-void save_lap_time(int lap_time)
-{
+void save_lap_time(int lap_time) {
     static PropertyAnimation animations[LAP_TIME_SIZE];
     static GRect targets[LAP_TIME_SIZE];
 
@@ -285,6 +270,13 @@ void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
         update_stopwatch();
         update_timer = app_timer_send_event(ctx, 1000, TIMER_UPDATE);
     }
+}
+
+void config_provider(ClickConfig **config, Window *window) {
+    config[BUTTON_ID_SELECT]->click.handler = (ClickHandler)toggle_stopwatch_handler;
+    config[BUTTON_ID_DOWN]->click.handler = (ClickHandler)reset_stopwatch_handler;
+    config[BUTTON_ID_UP]->click.handler = (ClickHandler)lap_time_handler;
+    (void)window;
 }
 
 void pbl_main(void *params) {
