@@ -20,6 +20,11 @@
             "characterRegex": "[:0-9.]",
             "defName": "FONT_DEJAVU_SANS_SUBSET_22",
             "file": "fonts/DejaVuSans.ttf"
+        },
+        {
+            "type": "png",
+            "defName": "IMAGE_MENU_ICON",
+            "file": "images/stopwatch.png"
         }
     ]
 }
