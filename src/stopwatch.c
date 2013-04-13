@@ -6,7 +6,7 @@
 #define MY_UUID { 0xC2, 0x5A, 0x8D, 0x50, 0x10, 0x5F, 0x45, 0xBF, 0xB9, 0x92, 0xCF, 0xF9, 0x58, 0xA7, 0x93, 0xAD }
 PBL_APP_INFO(MY_UUID,
              "Stopwatch", "Katharine Berry",
-             2, 0, /* App version */
+             2, 1, /* App version */
              RESOURCE_ID_IMAGE_MENU_ICON,
              APP_INFO_STANDARD_APP);
 
@@ -36,6 +36,13 @@ int last_lap_time = 0;
 time_t elapsed_time = 0;
 bool started = false;
 AppTimerHandle update_timer = APP_TIMER_INVALID_HANDLE;
+// We want hundredths of a second, but Pebble won't give us that.
+// Pebble's timers are also too inaccurate (we run fast for some reason)
+// Instead, we count our own time but also adjust ourselves every pebble
+// clock tick. We maintain our original offset in hundredths of a second
+// from the first tick. This should ensure that we always have accurate times.
+time_t start_time = 0;
+time_t last_pebble_time = 0;
 
 // Global animation lock. As long as we only try doing things while
 // this is zero, we shouldn't crash the watch.
@@ -62,6 +69,7 @@ void draw_line(Layer *me, GContext* ctx);
 void save_lap_time(int seconds);
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window);
 void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier);
+time_t get_pebble_time();
 
 void handle_init(AppContextRef ctx) {
     app = ctx;
@@ -132,9 +140,22 @@ void stop_stopwatch() {
     }
 }
 
+// Milliseconds since January 1st 2012 in some timezone, discounting leap years.
+// There must be a better way to do this...
+time_t get_pebble_time() {
+    PblTm t;
+    get_time(&t);
+    time_t seconds = t.tm_sec;
+    seconds += t.tm_min * 60; 
+    seconds += t.tm_hour * 3600;
+    seconds += t.tm_yday * 86400;
+    seconds += (t.tm_year - 2012) * 31536000;
+    return seconds * 1000;
+}
+
 void start_stopwatch() {
     started = true;
-
+    last_pebble_time = 0;
     update_timer = app_timer_send_event(app, 100, TIMER_UPDATE);
 }
 
@@ -149,7 +170,9 @@ void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
 void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
     if(busy_animating) return;
     elapsed_time = 0;
+    start_time = 0;
     last_lap_time = 0;
+    last_pebble_time = 0;
     update_stopwatch();
 
     // Animate all the laps away.
@@ -165,8 +188,9 @@ void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
 
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window) {
     if(busy_animating) return;
-    int t = elapsed_time - last_lap_time;
-    last_lap_time = elapsed_time;
+    time_t elapsed = elapsed_time;
+    int t = elapsed - last_lap_time;
+    last_lap_time = elapsed;
     save_lap_time(t);
 }
 
@@ -278,6 +302,18 @@ void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
         if(started) {
             elapsed_time += 100;
             update_timer = app_timer_send_event(ctx, 100, TIMER_UPDATE);
+            // Every tick of the pebble clock, force our time back to it.
+            time_t pebble_time = get_pebble_time();
+            if(!last_pebble_time) last_pebble_time = pebble_time;
+            if(pebble_time > last_pebble_time) {
+                // If it's the first tick, instead of changing our time we calculate the correct time.
+                if(!start_time) {
+                    start_time = pebble_time - elapsed_time;
+                } else {
+                    elapsed_time = pebble_time - start_time;
+                }
+                last_pebble_time = pebble_time;
+            }
         }
         update_stopwatch();
     }
