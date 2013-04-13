@@ -78,41 +78,43 @@ void handle_init(AppContextRef ctx) {
   // Arrange for user input.
   window_set_click_config_provider(&window, (ClickConfigProvider) config_provider);
 
+  // Get our fonts
+  GFont big_font = fonts_load_custom_font(resource_get_handle(FONT_BIG_TIME));
+  GFont seconds_font = fonts_load_custom_font(resource_get_handle(FONT_SECONDS));
+  GFont laps_font = seconds_font;
+
+  // Root layer
+  Layer *root_layer = window_get_root_layer(&window);
 
   // Set up the big timer.
-  GRect big_time_position = {.origin = {.x = 0, .y = 5}, .size = {.w = 105, .h = 35}};
-
-  text_layer_init(&big_time_layer, big_time_position);
+  text_layer_init(&big_time_layer, GRect(0, 5, 105, 35));
   text_layer_set_background_color(&big_time_layer, GColorBlack);
-  text_layer_set_font(&big_time_layer, fonts_load_custom_font(resource_get_handle(FONT_BIG_TIME)));
+  text_layer_set_font(&big_time_layer, big_font);
   text_layer_set_text_color(&big_time_layer, GColorWhite);
   text_layer_set_text(&big_time_layer, "00:00");
   text_layer_set_text_alignment(&big_time_layer, GTextAlignmentRight);
-  layer_add_child(&window.layer, &big_time_layer.layer);
+  layer_add_child(root_layer, &big_time_layer.layer);
 
-  GRect seconds_time_position = {.origin = {.x = 107, .y = 17}, .size = {.w = 33, .h = 35}};
-
-  text_layer_init(&seconds_time_layer, seconds_time_position);
+  text_layer_init(&seconds_time_layer, GRect(107, 17, 33, 35));
   text_layer_set_background_color(&seconds_time_layer, GColorBlack);
-  text_layer_set_font(&seconds_time_layer, fonts_load_custom_font(resource_get_handle(FONT_SECONDS)));
+  text_layer_set_font(&seconds_time_layer, seconds_font);
   text_layer_set_text_color(&seconds_time_layer, GColorWhite);
   text_layer_set_text(&seconds_time_layer, ":00");
-  layer_add_child(&window.layer, &seconds_time_layer.layer);
+  layer_add_child(root_layer, &seconds_time_layer.layer);
 
   // Draw our nice line.
-  GRect line_position = {.origin = {.x = 0, .y = 50}, .size = {.w = 144, .h = 2}};
-  layer_init(&line_layer, line_position);
+  layer_init(&line_layer, GRect(0, 50, 144, 2));
   line_layer.update_proc = &draw_line;
-  layer_add_child(&window.layer, &line_layer);
+  layer_add_child(root_layer, &line_layer);
 
   // Set up the lap time layers. These will be made visible later.
   for(int i = 0; i < LAP_TIME_SIZE; ++i) {
     text_layer_init(&lap_layers[i], GRect(-139, 57, 139, 30));
     text_layer_set_background_color(&lap_layers[i], GColorClear);
-    text_layer_set_font(&lap_layers[i], fonts_load_custom_font(resource_get_handle(FONT_SECONDS)));
+    text_layer_set_font(&lap_layers[i], laps_font);
     text_layer_set_text_color(&lap_layers[i], GColorWhite);
     text_layer_set_text(&lap_layers[i], lap_times[i]);
-    layer_add_child(&window.layer, &lap_layers[i].layer);
+    layer_add_child(root_layer, &lap_layers[i].layer);
   }
 }
 
