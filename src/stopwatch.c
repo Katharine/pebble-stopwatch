@@ -38,6 +38,10 @@ time_t elapsed_time = 0;
 bool started = false;
 AppTimerHandle update_timer = APP_TIMER_INVALID_HANDLE;
 
+// Global animation lock. As long as we only try doing things while
+// this is zero, we shouldn't crash the watch.
+int busy_animating = 0;
+
 #define TIMER_UPDATE 1
 #define FONT_BIG_TIME RESOURCE_ID_FONT_DEJAVU_SANS_BOLD_SUBSET_32
 #define FONT_SECONDS RESOURCE_ID_FONT_DEJAVU_SANS_SUBSET_20
@@ -159,22 +163,25 @@ void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
 }
 
 void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
+    if(busy_animating) return;
     elapsed_time = 0;
     start_time = time_seconds();
     last_lap_time = 0;
     update_stopwatch();
 
     // Animate all the laps away.
-    static PropertyAnimation animations[4];
-    static GRect targets[4];
+    busy_animating = LAP_TIME_SIZE;
+    static PropertyAnimation animations[LAP_TIME_SIZE];
+    static GRect targets[LAP_TIME_SIZE];
     for(int i = 0; i < LAP_TIME_SIZE; ++i) {
-        shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i], 4);
+        shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i], LAP_TIME_SIZE);
         animation_schedule(&animations[i].animation);
     }
     next_lap_layer = 0;
 }
 
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window) {
+    if(busy_animating) return;
     int t = elapsed_time - last_lap_time;
     last_lap_time = elapsed_time;
     save_lap_time(t);
@@ -222,6 +229,10 @@ void update_stopwatch() {
     text_layer_set_text(&seconds_time_layer, seconds_time);
 }
 
+void animation_stopped(Animation *animation, void *data) {
+    --busy_animating;
+}
+
 void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier) {
     GRect origin = layer_get_frame(layer);
     *target = origin;
@@ -229,13 +240,19 @@ void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, 
     property_animation_init_layer_frame(animation, layer, NULL, target);
     animation_set_duration(&animation->animation, 250);
     animation_set_curve(&animation->animation, AnimationCurveLinear);
+    animation_set_handlers(&animation->animation, (AnimationHandlers){
+        .stopped = (AnimationStoppedHandler)animation_stopped
+    }, NULL);
 }
 
 void save_lap_time(int lap_time) {
+    if(busy_animating) return;
+
     static PropertyAnimation animations[LAP_TIME_SIZE];
     static GRect targets[LAP_TIME_SIZE];
 
     // Shift them down visually (assuming they actually exist)
+    busy_animating = 4;
     for(int i = 0; i < LAP_TIME_SIZE; ++i) {
         if(i == next_lap_layer) continue; // This is handled separately.
         shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i], 1);
@@ -259,6 +276,9 @@ void save_lap_time(int lap_time) {
     property_animation_init_layer_frame(&entry_animation, &lap_layers[next_lap_layer].layer, &origin, &target);
     animation_set_curve(&entry_animation.animation, AnimationCurveEaseOut);
     animation_set_delay(&entry_animation.animation, 50);
+    animation_set_handlers(&entry_animation.animation, (AnimationHandlers){
+        .stopped = (AnimationStoppedHandler)animation_stopped
+    }, NULL);
     animation_schedule(&entry_animation.animation);
     next_lap_layer = (next_lap_layer + 1) % LAP_TIME_SIZE;
 
