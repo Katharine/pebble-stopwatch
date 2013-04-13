@@ -6,13 +6,19 @@
         {
             "type": "font",
             "characterRegex": "[:0-9]",
-            "defName": "FONT_DEJAVU_SANS_BOLD_SUBSET_32",
+            "defName": "FONT_DEJAVU_SANS_BOLD_SUBSET_30",
             "file": "fonts/DejaVuSans-Bold.ttf"
         },
         {
             "type": "font",
-            "characterRegex": "[:0-9 ]",
-            "defName": "FONT_DEJAVU_SANS_SUBSET_20",
+            "characterRegex": "[:0-9.]",
+            "defName": "FONT_DEJAVU_SANS_SUBSET_18",
+            "file": "fonts/DejaVuSans.ttf"
+        },
+        {
+            "type": "font",
+            "characterRegex": "[:0-9.]",
+            "defName": "FONT_DEJAVU_SANS_SUBSET_22",
             "file": "fonts/DejaVuSans.ttf"
         }
     ]
