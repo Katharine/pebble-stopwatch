@@ -33,7 +33,6 @@ int last_lap_time = 0;
 #endif
 
 // Actually keeping track of time
-time_t start_time = 0;
 time_t elapsed_time = 0;
 bool started = false;
 AppTimerHandle update_timer = APP_TIMER_INVALID_HANDLE;
@@ -123,19 +122,6 @@ void draw_line(Layer *me, GContext* ctx) {
     graphics_draw_line(ctx, GPoint(0, 1), GPoint(140, 1));
 }
 
-// Time since January 1st 2012 in some timezone, discounting leap years.
-// There must be a better way to do this...
-time_t time_seconds() {
-    PblTm t;
-    get_time(&t);
-    time_t seconds = t.tm_sec;
-    seconds += t.tm_min * 60; 
-    seconds += t.tm_hour * 3600;
-    seconds += t.tm_yday * 86400;
-    seconds += (t.tm_year - 2012) * 31536000;
-    return seconds;
-}
-
 void stop_stopwatch() {
     started = false;
     if(update_timer != APP_TIMER_INVALID_HANDLE) {
@@ -146,12 +132,9 @@ void stop_stopwatch() {
 }
 
 void start_stopwatch() {
-    // Hack: set the start time to now minus the previously recorded time.
-    // This lets us pause and unpause the timer.
-    start_time = time_seconds() - elapsed_time;
     started = true;
 
-    update_timer = app_timer_send_event(app, 1000, TIMER_UPDATE);
+    update_timer = app_timer_send_event(app, 100, TIMER_UPDATE);
 }
 
 void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
@@ -165,7 +148,6 @@ void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
 void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
     if(busy_animating) return;
     elapsed_time = 0;
-    start_time = time_seconds();
     last_lap_time = 0;
     update_stopwatch();
 
@@ -205,14 +187,11 @@ void itoa2(int num, char* buffer) {
 void update_stopwatch() {
     static char big_time[] = "00:00";
     static char seconds_time[] = ":00";
-    if(started) {
-        elapsed_time = time_seconds() - start_time;
-    }
 
     // Now convert to hours/minutes/seconds.
-    int seconds = elapsed_time % 60;
-    int minutes = (elapsed_time / 60) % 60;
-    int hours = elapsed_time / 3600;
+    int seconds = (elapsed_time / 1000) % 60;
+    int minutes = (elapsed_time / 60000) % 60;
+    int hours = elapsed_time / 3600000;
 
     // We can't fit three digit hours, so stop timing here.
     if(hours > 99) {
@@ -261,9 +240,9 @@ void save_lap_time(int lap_time) {
 
     // Once those are done we can slide our new lap time in.
     // First we need to generate a string.
-    int seconds = lap_time % 60;
-    int minutes = (lap_time / 60) % 60;
-    int hours = lap_time / 3600;
+    int seconds = (lap_time / 1000) % 60;
+    int minutes = (lap_time / 60000) % 60;
+    int hours = lap_time / 3600000;
     // Fix up our buffer
     itoa2(hours, &lap_times[next_lap_layer][0]);
     itoa2(minutes, &lap_times[next_lap_layer][3]);
@@ -287,8 +266,11 @@ void save_lap_time(int lap_time) {
 void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
     (void)handle;
     if(cookie == TIMER_UPDATE) {
+        if(started) {
+            elapsed_time += 100;
+            update_timer = app_timer_send_event(ctx, 100, TIMER_UPDATE);
+        }
         update_stopwatch();
-        update_timer = app_timer_send_event(ctx, 1000, TIMER_UPDATE);
     }
 }
 
