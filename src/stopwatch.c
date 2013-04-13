@@ -54,6 +54,7 @@ void pbl_main(void *params);
 void draw_line(Layer *me, GContext* ctx);
 void save_lap_time(int seconds);
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window);
+void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier);
 
 void config_provider(ClickConfig **config, Window *window)
 {
@@ -171,7 +172,17 @@ void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window)
 {
     elapsed_time = 0;
     start_time = time_seconds();
+    last_lap_time = 0;
     update_stopwatch();
+
+    // Animate all the laps away.
+    static PropertyAnimation animations[4];
+    static GRect targets[4];
+    for(int i = 0; i < LAP_TIME_SIZE; ++i) {
+        shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i], 4);
+        animation_schedule(&animations[i].animation);
+    }
+    next_lap_layer = 0;
 }
 
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window)
@@ -200,8 +211,9 @@ void update_stopwatch()
 {
     static char big_time[] = "00:00";
     static char seconds_time[] = ":00";
-    if(!started) return; // Bail if we aren't started.
-    elapsed_time = time_seconds() - start_time;
+    if(started) {
+        elapsed_time = time_seconds() - start_time;
+    }
 
     // Now convert to hours/minutes/seconds.
     int seconds = elapsed_time % 60;
@@ -223,11 +235,11 @@ void update_stopwatch()
     text_layer_set_text(&seconds_time_layer, seconds_time);
 }
 
-void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target)
+void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier)
 {
     GRect origin = layer_get_frame(layer);
     *target = origin;
-    target->origin.y += target->size.h;
+    target->origin.y += target->size.h * distance_multiplier;
     property_animation_init_layer_frame(animation, layer, NULL, target);
     animation_set_duration(&animation->animation, 250);
     animation_set_curve(&animation->animation, AnimationCurveLinear);
@@ -241,7 +253,7 @@ void save_lap_time(int lap_time)
     // Shift them down visually (assuming they actually exist)
     for(int i = 0; i < LAP_TIME_SIZE; ++i) {
         if(i == next_lap_layer) continue; // This is handled separately.
-        shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i]);
+        shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i], 1);
         animation_schedule(&animations[i].animation);
     }
 
