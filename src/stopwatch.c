@@ -252,7 +252,7 @@ void save_lap_time(int lap_time) {
     static GRect targets[LAP_TIME_SIZE];
 
     // Shift them down visually (assuming they actually exist)
-    busy_animating = 4;
+    busy_animating = LAP_TIME_SIZE;
     for(int i = 0; i < LAP_TIME_SIZE; ++i) {
         if(i == next_lap_layer) continue; // This is handled separately.
         shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i], 1);
