@@ -10,7 +10,7 @@
         },
         {
         "type": "font",
-        "characterRegex": "[:0-9]",
+        "characterRegex": "[:0-9 ]",
         "defName": "FONT_DEJAVU_SANS_SUBSET_20",
         "file": "fonts/DejaVuSans.ttf"
         }

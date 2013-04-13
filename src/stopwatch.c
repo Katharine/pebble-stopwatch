@@ -18,8 +18,11 @@ Layer line_layer;
 AppTimerHandle timer_handle;
 AppContextRef app;
 
-int lap_times[3] = {0, 0, 0};
-int num_laps = 0;
+#define LAP_TIME_SIZE 4
+char lap_times[LAP_TIME_SIZE][9] = {"00:00:00", "00:01:00", "00:02:00", "00:03:00"};
+TextLayer lap_layers[LAP_TIME_SIZE]; // an extra temporary layer
+int next_lap_layer = 0;
+int last_lap_time = 0;
 
 // The documentation claims this is defined, but it is not.
 // Define it here for now.
@@ -49,11 +52,14 @@ void update_stopwatch();
 void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie);
 void pbl_main(void *params);
 void draw_line(Layer *me, GContext* ctx);
+void save_lap_time(int seconds);
+void lap_time_handler(ClickRecognizerRef recognizer, Window *window);
 
 void config_provider(ClickConfig **config, Window *window)
 {
     config[BUTTON_ID_SELECT]->click.handler = (ClickHandler)toggle_stopwatch_handler;
     config[BUTTON_ID_DOWN]->click.handler = (ClickHandler)reset_stopwatch_handler;
+    config[BUTTON_ID_UP]->click.handler = (ClickHandler)lap_time_handler;
     (void)window;
 }
 
@@ -98,6 +104,16 @@ void handle_init(AppContextRef ctx) {
   layer_init(&line_layer, line_position);
   line_layer.update_proc = &draw_line;
   layer_add_child(&window.layer, &line_layer);
+
+  // Set up the lap time layers. These will be made visible later.
+  for(int i = 0; i < LAP_TIME_SIZE; ++i) {
+    text_layer_init(&lap_layers[i], GRect(-139, 57, 139, 30));
+    text_layer_set_background_color(&lap_layers[i], GColorClear);
+    text_layer_set_font(&lap_layers[i], fonts_load_custom_font(resource_get_handle(FONT_SECONDS)));
+    text_layer_set_text_color(&lap_layers[i], GColorWhite);
+    text_layer_set_text(&lap_layers[i], lap_times[i]);
+    layer_add_child(&window.layer, &lap_layers[i].layer);
+  }
 }
 
 
@@ -156,7 +172,14 @@ void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window)
     update_stopwatch();
 }
 
-// Surely there must be some way of doing this...
+void lap_time_handler(ClickRecognizerRef recognizer, Window *window)
+{
+    int t = elapsed_time - last_lap_time;
+    last_lap_time = elapsed_time;
+    save_lap_time(t);
+}
+
+// There must be some way of doing this besides writing our own...
 void itoa2(int num, char* buffer) {
     const char digits[10] = "0123456789";
     if(num > 99) {
@@ -196,6 +219,50 @@ void update_stopwatch()
     // Now draw the strings.
     text_layer_set_text(&big_time_layer, big_time);
     text_layer_set_text(&seconds_time_layer, seconds_time);
+}
+
+void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target)
+{
+    GRect origin = layer_get_frame(layer);
+    *target = origin;
+    target->origin.y += target->size.h;
+    property_animation_init_layer_frame(animation, layer, NULL, target);
+    animation_set_duration(&animation->animation, 250);
+    animation_set_curve(&animation->animation, AnimationCurveLinear);
+}
+
+void save_lap_time(int lap_time)
+{
+    static PropertyAnimation animations[LAP_TIME_SIZE];
+    static GRect targets[LAP_TIME_SIZE];
+
+    // Shift them down visually (assuming they actually exist)
+    for(int i = 0; i < LAP_TIME_SIZE; ++i) {
+        if(i == next_lap_layer) continue; // This is handled separately.
+        shift_lap_layer(&animations[i], &lap_layers[i].layer, &targets[i]);
+        animation_schedule(&animations[i].animation);
+    }
+
+    // Once those are done we can slide our new lap time in.
+    // First we need to generate a string.
+    int seconds = lap_time % 60;
+    int minutes = (lap_time / 60) % 60;
+    int hours = lap_time / 3600;
+    // Fix up our buffer
+    itoa2(hours, &lap_times[next_lap_layer][0]);
+    itoa2(minutes, &lap_times[next_lap_layer][3]);
+    itoa2(seconds, &lap_times[next_lap_layer][6]);
+
+    // Animate it
+    static PropertyAnimation entry_animation;
+    static GRect origin; origin = GRect(-139, 57, 139, 26);
+    static GRect target; target = GRect(5, 57, 139, 26);
+    property_animation_init_layer_frame(&entry_animation, &lap_layers[next_lap_layer].layer, &origin, &target);
+    animation_set_curve(&entry_animation.animation, AnimationCurveEaseOut);
+    animation_set_delay(&entry_animation.animation, 50);
+    animation_schedule(&entry_animation.animation);
+    next_lap_layer = (next_lap_layer + 1) % LAP_TIME_SIZE;
+
 }
 
 void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
