@@ -19,9 +19,14 @@ static int time_ring_length = 0;
 static int times_displayed = 0;
 static int total_laps = 0;
 
+void handle_appear(Window *window);
+
 void init_lap_window() {
     window_init(&window, "Lap times");
     window_set_background_color(&window, GColorWhite);
+    window_set_window_handlers(&window, (WindowHandlers){
+        .appear = (WindowHandler)handle_appear
+    });
 
     scroll_layer_init(&scroll_view, GRect(0, 0, 144, 152));
     scroll_layer_set_click_config_onto_window(&scroll_view, &window);
@@ -88,4 +93,8 @@ void clear_stored_laps() {
     }
     layer_set_hidden(&no_laps_note.layer, false);
     total_laps = 0;
+}
+
+void handle_appear(Window *window) {
+    scroll_layer_set_content_offset(&scroll_view, GPoint(0, 0), false);
 }
