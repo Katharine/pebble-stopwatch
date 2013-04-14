@@ -187,6 +187,7 @@ void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
         animation_schedule(&animations[i].animation);
     }
     next_lap_layer = 0;
+    clear_stored_laps();
 }
 
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window) {
@@ -262,16 +263,7 @@ void save_lap_time(int lap_time) {
     }
 
     // Once those are done we can slide our new lap time in.
-    // First we need to generate a string.
-    int hundredths = (lap_time / 100) % 10;
-    int seconds = (lap_time / 1000) % 60;
-    int minutes = (lap_time / 60000) % 60;
-    int hours = lap_time / 3600000;
-    // Fix up our buffer
-    itoa2(hours, &lap_times[next_lap_layer][0]);
-    itoa2(minutes, &lap_times[next_lap_layer][3]);
-    itoa2(seconds, &lap_times[next_lap_layer][6]);
-    itoa1(hundredths, &lap_times[next_lap_layer][9]);
+    format_lap(lap_time, lap_times[next_lap_layer]);
 
     // Animate it
     static PropertyAnimation entry_animation;
@@ -286,6 +278,8 @@ void save_lap_time(int lap_time) {
     animation_schedule(&entry_animation.animation);
     next_lap_layer = (next_lap_layer + 1) % LAP_TIME_SIZE;
 
+    // Get it into the laps window, too.
+    store_lap_time(lap_time);
 }
 
 void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
@@ -311,7 +305,7 @@ void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
     }
 }
 
-void display_lap_times(ClickRecognizerRef recognizer, Window *window) {
+void handle_display_lap_times(ClickRecognizerRef recognizer, Window *window) {
     show_laps();
 }
 
@@ -319,7 +313,7 @@ void config_provider(ClickConfig **config, Window *window) {
     config[BUTTON_ID_SELECT]->click.handler = (ClickHandler)toggle_stopwatch_handler;
     config[BUTTON_ID_DOWN]->click.handler = (ClickHandler)reset_stopwatch_handler;
     config[BUTTON_ID_UP]->click.handler = (ClickHandler)lap_time_handler;
-    config[BUTTON_ID_UP]->long_click.handler = (ClickHandler)display_lap_times;
+    config[BUTTON_ID_UP]->long_click.handler = (ClickHandler)handle_display_lap_times;
     config[BUTTON_ID_UP]->long_click.delay_ms = 700;
     (void)window;
 }

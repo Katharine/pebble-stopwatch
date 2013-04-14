@@ -33,3 +33,18 @@ time_t get_pebble_time() {
     seconds += (t.tm_year - 2012) * 31536000;
     return seconds * 1000;
 }
+
+void format_lap(time_t lap_time, char* buffer) {
+    int hundredths = (lap_time / 100) % 10;
+    int seconds = (lap_time / 1000) % 60;
+    int minutes = (lap_time / 60000) % 60;
+    int hours = lap_time / 3600000;
+
+    itoa2(hours, &buffer[0]);
+    buffer[2] = ':';
+    itoa2(minutes, &buffer[3]);
+    buffer[5] = ':';
+    itoa2(seconds, &buffer[6]);
+    buffer[8] = '.';
+    itoa1(hundredths, &buffer[9]);
+}
