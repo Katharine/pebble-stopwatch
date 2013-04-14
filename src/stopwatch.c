@@ -78,6 +78,10 @@ static int busy_animating = 0;
 #define FONT_SECONDS RESOURCE_ID_FONT_DEJAVU_SANS_SUBSET_18
 #define FONT_LAPS RESOURCE_ID_FONT_DEJAVU_SANS_SUBSET_22
 
+#define BUTTON_LAP BUTTON_ID_DOWN
+#define BUTTON_RUN BUTTON_ID_SELECT
+#define BUTTON_RESET BUTTON_ID_UP
+
 void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window);
 void config_provider(ClickConfig **config, Window *window);
 void handle_init(AppContextRef ctx);
@@ -148,7 +152,7 @@ void handle_init(AppContextRef ctx) {
 
     // Add some button labels
     bmp_init_container(RESOURCE_ID_IMAGE_BUTTON_LABELS, &button_labels);
-    layer_set_frame(&button_labels.layer.layer, GRect(127, 10, 17, 136));
+    layer_set_frame(&button_labels.layer.layer, GRect(130, 10, 14, 136));
     layer_add_child(root_layer, &button_labels.layer.layer);
 
     // Set up lap time stuff, too.
@@ -332,11 +336,11 @@ void handle_display_lap_times(ClickRecognizerRef recognizer, Window *window) {
 }
 
 void config_provider(ClickConfig **config, Window *window) {
-    config[BUTTON_ID_SELECT]->click.handler = (ClickHandler)toggle_stopwatch_handler;
-    config[BUTTON_ID_DOWN]->click.handler = (ClickHandler)reset_stopwatch_handler;
-    config[BUTTON_ID_UP]->click.handler = (ClickHandler)lap_time_handler;
-    config[BUTTON_ID_UP]->long_click.handler = (ClickHandler)handle_display_lap_times;
-    config[BUTTON_ID_UP]->long_click.delay_ms = 700;
+    config[BUTTON_RUN]->click.handler = (ClickHandler)toggle_stopwatch_handler;
+    config[BUTTON_RESET]->click.handler = (ClickHandler)reset_stopwatch_handler;
+    config[BUTTON_LAP]->click.handler = (ClickHandler)lap_time_handler;
+    config[BUTTON_LAP]->long_click.handler = (ClickHandler)handle_display_lap_times;
+    config[BUTTON_LAP]->long_click.delay_ms = 700;
     (void)window;
 }
 

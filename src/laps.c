@@ -54,12 +54,12 @@ void init_lap_window() {
     scroll_layer_init(&scroll_view, GRect(0, 0, 144, 152));
     scroll_layer_set_click_config_onto_window(&scroll_view, &window);
 
-    GFont laps_font = fonts_get_system_font(FONT_KEY_GOTHIC_24);
+    GFont laps_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DEJAVU_SANS_SUBSET_18));
 
     for(int i = 0; i < MAX_LAPS; ++i) {
         memcpy(lap_text[i], " 1) 12:34:56.7", LAP_STRING_LENGTH);
 
-        text_layer_init(&lap_layers[i], GRect(0, i * 25, 144, 25));
+        text_layer_init(&lap_layers[i], GRect(0, i * 22, 144, 22));
         text_layer_set_background_color(&lap_layers[i], GColorClear);
         text_layer_set_font(&lap_layers[i], laps_font);
         text_layer_set_text_color(&lap_layers[i], GColorBlack);
@@ -96,7 +96,7 @@ void store_lap_time(time_t lap_time) {
         }
         layer_set_hidden(&lap_layers[times_displayed].layer, false);
         ++times_displayed;
-        scroll_layer_set_content_size(&scroll_view, GSize(144, times_displayed * 25));
+        scroll_layer_set_content_size(&scroll_view, GSize(144, times_displayed * 22));
     }
     for(int i = MAX_LAPS - 1; i > 0; --i) {
         memcpy(lap_text[i], lap_text[i-1], LAP_STRING_LENGTH);
