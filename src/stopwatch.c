@@ -156,6 +156,7 @@ time_t get_pebble_time() {
 void start_stopwatch() {
     started = true;
     last_pebble_time = 0;
+    start_time = 0;
     update_timer = app_timer_send_event(app, 100, TIMER_UPDATE);
 }
 
