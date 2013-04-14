@@ -17,6 +17,7 @@ AppContextRef app;
 TextLayer big_time_layer;
 TextLayer seconds_time_layer;
 Layer line_layer;
+BmpContainer button_labels;
 
 
 // Lap time display
@@ -122,8 +123,16 @@ void handle_init(AppContextRef ctx) {
         text_layer_set_text(&lap_layers[i], lap_times[i]);
         layer_add_child(root_layer, &lap_layers[i].layer);
     }
+
+    // Add some button labels
+    bmp_init_container(RESOURCE_ID_IMAGE_BUTTON_LABELS, &button_labels);
+    layer_set_frame(&button_labels.layer.layer, GRect(127, 10, 17, 136));
+    layer_add_child(root_layer, &button_labels.layer.layer);
 }
 
+void handle_deinit(AppContextRef ctx) {
+    bmp_deinit_container(&button_labels);
+}
 
 void draw_line(Layer *me, GContext* ctx) {
     graphics_context_set_stroke_color(ctx, GColorWhite);
@@ -341,6 +350,7 @@ void config_provider(ClickConfig **config, Window *window) {
 void pbl_main(void *params) {
   PebbleAppHandlers handlers = {
     .init_handler = &handle_init,
+    .deinit_handler = &handle_deinit,
     .timer_handler = &handle_timer
   };
   app_event_loop(params, &handlers);

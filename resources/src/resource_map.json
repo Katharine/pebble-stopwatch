@@ -25,6 +25,11 @@
             "type": "png",
             "defName": "IMAGE_MENU_ICON",
             "file": "images/stopwatch.png"
+        },
+        {
+            "type": "png",
+            "defName": "IMAGE_BUTTON_LABELS",
+            "file": "images/buttons.png"
         }
     ]
 }
