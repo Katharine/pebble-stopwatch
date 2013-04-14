@@ -32,7 +32,7 @@ static Window window;
 static ScrollLayer scroll_view;
 static TextLayer no_laps_note;
 
-#define MAX_LAPS 20
+#define MAX_LAPS 30
 #define LAP_STRING_LENGTH 15
 
 static TextLayer lap_layers[MAX_LAPS];
