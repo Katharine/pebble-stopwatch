@@ -6,7 +6,7 @@
 #define MY_UUID { 0xC2, 0x5A, 0x8D, 0x50, 0x10, 0x5F, 0x45, 0xBF, 0xB9, 0x92, 0xCF, 0xF9, 0x58, 0xA7, 0x93, 0xAD }
 PBL_APP_INFO(MY_UUID,
              "Stopwatch", "Katharine Berry",
-             2, 1, /* App version */
+             3, 0, /* App version */
              RESOURCE_ID_IMAGE_MENU_ICON,
              APP_INFO_STANDARD_APP);
 
@@ -105,7 +105,7 @@ void handle_init(AppContextRef ctx) {
     text_layer_set_background_color(&seconds_time_layer, GColorBlack);
     text_layer_set_font(&seconds_time_layer, seconds_font);
     text_layer_set_text_color(&seconds_time_layer, GColorWhite);
-    text_layer_set_text(&seconds_time_layer, ":00.0");
+    text_layer_set_text(&seconds_time_layer, ".0");
     layer_add_child(root_layer, &seconds_time_layer.layer);
 
     // Draw our nice line.
@@ -170,10 +170,13 @@ void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
 
 void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window) {
     if(busy_animating) return;
+    bool is_running = started;
+    stop_stopwatch();
     elapsed_time = 0;
     start_time = 0;
     last_lap_time = 0;
     last_pebble_time = 0;
+    if(is_running) start_stopwatch();
     update_stopwatch();
 
     // Animate all the laps away.
@@ -216,10 +219,11 @@ void itoa2(int num, char* buffer) {
 
 void update_stopwatch() {
     static char big_time[] = "00:00";
-    static char seconds_time[] = ":00.0";
+    static char deciseconds_time[] = ".0";
+    static char seconds_time[] = ":00";
 
     // Now convert to hours/minutes/seconds.
-    int hundredths = (elapsed_time / 100) % 10;
+    int tenths = (elapsed_time / 100) % 10;
     int seconds = (elapsed_time / 1000) % 60;
     int minutes = (elapsed_time / 60000) % 60;
     int hours = elapsed_time / 3600000;
@@ -229,15 +233,22 @@ void update_stopwatch() {
         stop_stopwatch();
         return;
     }
-
-    itoa2(hours, &big_time[0]);
-    itoa2(minutes, &big_time[3]);
-    itoa2(seconds, &seconds_time[1]);
-    itoa1(hundredths, &seconds_time[4]);
+    if(hours < 1)
+    {
+        itoa2(minutes, &big_time[0]);
+        itoa2(seconds, &big_time[3]);
+        itoa1(tenths, &deciseconds_time[1]);
+    }
+    else
+    {
+        itoa2(hours, &big_time[0]);
+        itoa2(minutes, &big_time[3]);
+        itoa2(seconds, &seconds_time[1]);
+    }
 
     // Now draw the strings.
     text_layer_set_text(&big_time_layer, big_time);
-    text_layer_set_text(&seconds_time_layer, seconds_time);
+    text_layer_set_text(&seconds_time_layer, hours < 1 ? deciseconds_time : seconds_time);
 }
 
 void animation_stopped(Animation *animation, void *data) {
@@ -302,7 +313,6 @@ void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
     if(cookie == TIMER_UPDATE) {
         if(started) {
             elapsed_time += 100;
-            update_timer = app_timer_send_event(ctx, 100, TIMER_UPDATE);
             // Every tick of the pebble clock, force our time back to it.
             time_t pebble_time = get_pebble_time();
             if(!last_pebble_time) last_pebble_time = pebble_time;
@@ -315,6 +325,7 @@ void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
                 }
                 last_pebble_time = pebble_time;
             }
+            update_timer = app_timer_send_event(ctx, elapsed_time <= 3600000 ? 100 : 1000, TIMER_UPDATE);
         }
         update_stopwatch();
     }
