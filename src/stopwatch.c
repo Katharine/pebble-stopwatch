@@ -2,6 +2,8 @@
 #include "pebble_app.h"
 #include "pebble_fonts.h"
 
+#include "laps.h"
+#include "common.h"
 
 #define MY_UUID { 0xC2, 0x5A, 0x8D, 0x50, 0x10, 0x5F, 0x45, 0xBF, 0xB9, 0x92, 0xCF, 0xF9, 0x58, 0xA7, 0x93, 0xAD }
 PBL_APP_INFO(MY_UUID,
@@ -10,22 +12,22 @@ PBL_APP_INFO(MY_UUID,
              RESOURCE_ID_IMAGE_MENU_ICON,
              APP_INFO_STANDARD_APP);
 
-Window window;
+static Window window;
 AppContextRef app;
 
 // Main display
-TextLayer big_time_layer;
-TextLayer seconds_time_layer;
-Layer line_layer;
-BmpContainer button_labels;
+static TextLayer big_time_layer;
+static TextLayer seconds_time_layer;
+static Layer line_layer;
+static BmpContainer button_labels;
 
 
 // Lap time display
 #define LAP_TIME_SIZE 5
-char lap_times[LAP_TIME_SIZE][11] = {"00:00:00.0", "00:01:00.0", "00:02:00.0", "00:03:00.0", "00:04:00.0"};
-TextLayer lap_layers[LAP_TIME_SIZE]; // an extra temporary layer
-int next_lap_layer = 0;
-int last_lap_time = 0;
+static char lap_times[LAP_TIME_SIZE][11] = {"00:00:00.0", "00:01:00.0", "00:02:00.0", "00:03:00.0", "00:04:00.0"};
+static TextLayer lap_layers[LAP_TIME_SIZE]; // an extra temporary layer
+static int next_lap_layer = 0;
+static int last_lap_time = 0;
 
 // The documentation claims this is defined, but it is not.
 // Define it here for now.
@@ -34,20 +36,20 @@ int last_lap_time = 0;
 #endif
 
 // Actually keeping track of time
-time_t elapsed_time = 0;
-bool started = false;
-AppTimerHandle update_timer = APP_TIMER_INVALID_HANDLE;
+static time_t elapsed_time = 0;
+static bool started = false;
+static AppTimerHandle update_timer = APP_TIMER_INVALID_HANDLE;
 // We want hundredths of a second, but Pebble won't give us that.
 // Pebble's timers are also too inaccurate (we run fast for some reason)
 // Instead, we count our own time but also adjust ourselves every pebble
 // clock tick. We maintain our original offset in hundredths of a second
 // from the first tick. This should ensure that we always have accurate times.
-time_t start_time = 0;
-time_t last_pebble_time = 0;
+static time_t start_time = 0;
+static time_t last_pebble_time = 0;
 
 // Global animation lock. As long as we only try doing things while
 // this is zero, we shouldn't crash the watch.
-int busy_animating = 0;
+static int busy_animating = 0;
 
 #define TIMER_UPDATE 1
 #define FONT_BIG_TIME RESOURCE_ID_FONT_DEJAVU_SANS_BOLD_SUBSET_30
@@ -62,7 +64,6 @@ void stop_stopwatch();
 void start_stopwatch();
 void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window);
 void reset_stopwatch_handler(ClickRecognizerRef recognizer, Window *window);
-void itoa2(int num, char* buffer);
 void update_stopwatch();
 void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie);
 void pbl_main(void *params);
@@ -70,7 +71,6 @@ void draw_line(Layer *me, GContext* ctx);
 void save_lap_time(int seconds);
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window);
 void shift_lap_layer(PropertyAnimation* animation, Layer* layer, GRect* target, int distance_multiplier);
-time_t get_pebble_time();
 
 void handle_init(AppContextRef ctx) {
     app = ctx;
@@ -128,6 +128,9 @@ void handle_init(AppContextRef ctx) {
     bmp_init_container(RESOURCE_ID_IMAGE_BUTTON_LABELS, &button_labels);
     layer_set_frame(&button_labels.layer.layer, GRect(127, 10, 17, 136));
     layer_add_child(root_layer, &button_labels.layer.layer);
+
+    // Set up lap time stuff, too.
+    init_lap_window();
 }
 
 void handle_deinit(AppContextRef ctx) {
@@ -147,19 +150,6 @@ void stop_stopwatch() {
             update_timer = APP_TIMER_INVALID_HANDLE;
         }
     }
-}
-
-// Milliseconds since January 1st 2012 in some timezone, discounting leap years.
-// There must be a better way to do this...
-time_t get_pebble_time() {
-    PblTm t;
-    get_time(&t);
-    time_t seconds = t.tm_sec;
-    seconds += t.tm_min * 60; 
-    seconds += t.tm_hour * 3600;
-    seconds += t.tm_yday * 86400;
-    seconds += (t.tm_year - 2012) * 31536000;
-    return seconds * 1000;
 }
 
 void start_stopwatch() {
@@ -205,25 +195,6 @@ void lap_time_handler(ClickRecognizerRef recognizer, Window *window) {
     int t = elapsed - last_lap_time;
     last_lap_time = elapsed;
     save_lap_time(t);
-}
-
-// There must be some way of doing this besides writing our own...
-void itoa1(int num, char* buffer) {
-    const char digits[10] = "0123456789";
-    buffer[0] = digits[num % 10];
-}
-void itoa2(int num, char* buffer) {
-    const char digits[10] = "0123456789";
-    if(num > 99) {
-        buffer[0] = '9';
-        buffer[1] = '9';
-        return;
-    } else if(num > 9) {
-        buffer[0] = digits[num / 10];
-    } else {
-        buffer[0] = '0';
-    }
-    buffer[1] = digits[num % 10];
 }
 
 void update_stopwatch() {
@@ -340,10 +311,16 @@ void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
     }
 }
 
+void display_lap_times(ClickRecognizerRef recognizer, Window *window) {
+    show_laps();
+}
+
 void config_provider(ClickConfig **config, Window *window) {
     config[BUTTON_ID_SELECT]->click.handler = (ClickHandler)toggle_stopwatch_handler;
     config[BUTTON_ID_DOWN]->click.handler = (ClickHandler)reset_stopwatch_handler;
     config[BUTTON_ID_UP]->click.handler = (ClickHandler)lap_time_handler;
+    config[BUTTON_ID_UP]->long_click.handler = (ClickHandler)display_lap_times;
+    config[BUTTON_ID_UP]->long_click.delay_ms = 700;
     (void)window;
 }
 
