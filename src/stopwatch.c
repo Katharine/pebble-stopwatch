@@ -267,9 +267,9 @@ void save_lap_time(int lap_time) {
 
     // Animate it
     static PropertyAnimation entry_animation;
-    static GRect origin; origin = GRect(-139, 52, 139, 26);
-    static GRect target; target = GRect(5, 52, 139, 26);
-    property_animation_init_layer_frame(&entry_animation, &lap_layers[next_lap_layer].layer, &origin, &target);
+    //static GRect origin; origin = ;
+    //static GRect target; target = ;
+    property_animation_init_layer_frame(&entry_animation, &lap_layers[next_lap_layer].layer, &GRect(-139, 52, 139, 26), &GRect(5, 52, 139, 26));
     animation_set_curve(&entry_animation.animation, AnimationCurveEaseOut);
     animation_set_delay(&entry_animation.animation, 50);
     animation_set_handlers(&entry_animation.animation, (AnimationHandlers){
