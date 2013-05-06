@@ -1,35 +1,34 @@
 {
-    "friendlyVersion": "VERSION",
-    "versionDefName": "APP_RESOURCES",
-    "media": 
-    [
+    "media": [
         {
+            "characterRegex": "[:0-9. ]",
+            "defName": "FONT_DEJAVU_SANS_SUBSET_22",
             "type": "font",
+            "file": "fonts/DejaVuSans.ttf"
+        },
+        {
+            "characterRegex": "[:0-9. )Nolapsyet]",
+            "defName": "FONT_DEJAVU_SANS_SUBSET_18",
+            "type": "font",
+            "file": "fonts/DejaVuSans.ttf"
+        },
+        {
             "characterRegex": "[:0-9]",
             "defName": "FONT_DEJAVU_SANS_BOLD_SUBSET_30",
+            "type": "font",
             "file": "fonts/DejaVuSans-Bold.ttf"
         },
         {
-            "type": "font",
-            "characterRegex": "[:0-9. )Nolapsyet]",
-            "defName": "FONT_DEJAVU_SANS_SUBSET_18",
-            "file": "fonts/DejaVuSans.ttf"
-        },
-        {
-            "type": "font",
-            "characterRegex": "[:0-9.]",
-            "defName": "FONT_DEJAVU_SANS_SUBSET_22",
-            "file": "fonts/DejaVuSans.ttf"
-        },
-        {
-            "type": "png",
             "defName": "IMAGE_MENU_ICON",
+            "type": "png",
             "file": "images/stopwatch.png"
         },
         {
-            "type": "png",
             "defName": "IMAGE_BUTTON_LABELS",
+            "type": "png",
             "file": "images/buttons.png"
         }
-    ]
+    ],
+    "friendlyVersion": "VERSION",
+    "versionDefName": "APP_RESOURCES"
 }

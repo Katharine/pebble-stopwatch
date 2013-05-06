@@ -28,7 +28,7 @@
 #include "laps.h"
 #include "common.h"
 
-static Window window;
+static Window window; 
 static ScrollLayer scroll_view;
 static TextLayer no_laps_note;
 
