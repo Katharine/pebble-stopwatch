@@ -67,6 +67,18 @@ static GFont laps_font;
 #define BUTTON_RUN BUTTON_ID_SELECT
 #define BUTTON_RESET BUTTON_ID_UP
 
+#define PERSIST_STATE 1
+#define PERSIST_NUM_LAPS 4
+#define PERSIST_STORED_LAPS 5
+	
+struct StopwatchState {
+	bool started;
+	double elapsed_time;
+	double start_time;
+	double pause_time;
+	double last_lap_time;
+} __attribute__((__packed__));
+
 void toggle_stopwatch_handler(ClickRecognizerRef recognizer, Window *window);
 void config_provider(Window *window);
 void handle_init();
@@ -140,9 +152,35 @@ void handle_init() {
 
     // Set up lap time stuff, too.
     init_lap_window();
+	
+	struct StopwatchState state;
+	if(persist_read_data(PERSIST_STATE, &state, sizeof(state)) != E_DOES_NOT_EXIST) {
+		started = state.started;
+		start_time = state.start_time;
+		elapsed_time = state.elapsed_time;
+		pause_time = state.pause_time;
+		last_lap_time = state.last_lap_time;
+		update_stopwatch();
+		if(started) {
+			update_timer = app_timer_register(100, handle_timer, NULL);
+			APP_LOG(APP_LOG_LEVEL_DEBUG, "Started timer to resume persisted state.");
+		}
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Loaded persisted state.");
+	}
 }
 
 void handle_deinit() {
+	struct StopwatchState state = (struct StopwatchState){
+		.started = started,
+		.start_time = start_time,
+		.elapsed_time = elapsed_time,
+		.pause_time = pause_time,
+		.last_lap_time = last_lap_time
+	};
+	status_t status = persist_write_data(PERSIST_STATE, &state, sizeof(state));
+	if(status < S_SUCCESS) {
+		APP_LOG(APP_LOG_LEVEL_WARNING, "Failed to persist state: %ld", status);
+	}
 	deinit_lap_window();
 	
 	bitmap_layer_destroy(button_labels);
@@ -182,6 +220,7 @@ void start_stopwatch() {
 		double interval = float_time_ms() - pause_time;
 		start_time += interval;
 	}
+	status_t status;
     update_timer = app_timer_register(100, handle_timer, NULL);
 }
 
