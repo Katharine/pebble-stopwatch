@@ -1,0 +1,48 @@
+{
+    "versionLabel": "2.0",
+    "uuid": "11a1cb08-065f-491e-82c4-83b9f9cb042c",
+    "appKeys": {},
+    "longName": "Stopwatch",
+    "versionCode": 2,
+    "capabilities": [
+        ""
+    ],
+    "shortName": "Stopwatch",
+    "companyName": "Katharine Berry",
+    "watchapp": {
+        "watchface": false
+    },
+    "resources": {
+        "media": [
+            {
+                "characterRegex": "[:0-9. )Nolapsyet]",
+                "type": "font",
+                "name": "FONT_DEJAVU_SANS_SUBSET_18",
+                "file": "fonts/DejaVuSans.ttf"
+            },
+            {
+                "characterRegex": "[:0-9. ]",
+                "type": "font",
+                "name": "FONT_DEJAVU_SANS_SUBSET_22",
+                "file": "fonts/DejaVuSans.ttf"
+            },
+            {
+                "characterRegex": "[:0-9]",
+                "type": "font",
+                "name": "FONT_DEJAVU_SANS_BOLD_SUBSET_30",
+                "file": "fonts/DejaVuSans-Bold.ttf"
+            },
+            {
+                "menuIcon": true,
+                "type": "png",
+                "name": "IMAGE_MENU_ICON",
+                "file": "images/stopwatch.png"
+            },
+            {
+                "type": "png",
+                "name": "IMAGE_BUTTON_LABELS",
+                "file": "images/buttons.png"
+            }
+        ]
+    }
+}
