@@ -20,5 +20,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+
+#define PERSIST_STATE 1
+#define PERSIST_LAPS 4
+
 void format_lap(double lap_time, char* buffer);
 double float_time_ms();

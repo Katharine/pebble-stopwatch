@@ -40,6 +40,7 @@ static BitmapLayer* button_labels;
 static char lap_times[LAP_TIME_SIZE][11] = {"00:00:00.0", "00:01:00.0", "00:02:00.0", "00:03:00.0", "00:04:00.0"};
 static TextLayer* lap_layers[LAP_TIME_SIZE]; // an extra temporary layer
 static int next_lap_layer = 0;
+static int lap_time_count = 0;
 static double last_lap_time = 0;
 
 // Actually keeping track of time
@@ -66,10 +67,6 @@ static GFont laps_font;
 #define BUTTON_LAP BUTTON_ID_DOWN
 #define BUTTON_RUN BUTTON_ID_SELECT
 #define BUTTON_RESET BUTTON_ID_UP
-
-#define PERSIST_STATE 1
-#define PERSIST_NUM_LAPS 4
-#define PERSIST_STORED_LAPS 5
 	
 struct StopwatchState {
 	bool started;
@@ -91,9 +88,10 @@ void update_stopwatch();
 void handle_timer(void* data);
 int main();
 void draw_line(Layer *me, GContext* ctx);
-void save_lap_time(double seconds);
+void save_lap_time(double seconds, bool animate);
 void lap_time_handler(ClickRecognizerRef recognizer, Window *window);
 void shift_lap_layer(PropertyAnimation** animation, Layer* layer, GRect* target, int distance_multiplier);
+void lap_restored(double time);
 
 void handle_init() {
 	window = window_create();
@@ -167,6 +165,11 @@ void handle_init() {
 		}
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "Loaded persisted state.");
 	}
+	restore_laps((LapRestoredCallback)lap_restored);
+}
+
+void lap_restored(double time) {
+	save_lap_time(time, false);
 }
 
 void handle_deinit() {
@@ -180,6 +183,10 @@ void handle_deinit() {
 	status_t status = persist_write_data(PERSIST_STATE, &state, sizeof(state));
 	if(status < S_SUCCESS) {
 		APP_LOG(APP_LOG_LEVEL_WARNING, "Failed to persist state: %ld", status);
+	}
+	status = persist_laps();
+	if(status < S_SUCCESS) {
+		APP_LOG(APP_LOG_LEVEL_WARNING, "Failed to persist laps: %ld", status);
 	}
 	deinit_lap_window();
 	
@@ -220,7 +227,6 @@ void start_stopwatch() {
 		double interval = float_time_ms() - pause_time;
 		start_time += interval;
 	}
-	status_t status;
     update_timer = app_timer_register(100, handle_timer, NULL);
 }
 
@@ -259,7 +265,7 @@ void lap_time_handler(ClickRecognizerRef recognizer, Window *window) {
     double t = elapsed_time - last_lap_time;
     last_lap_time = elapsed_time;
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Elapsed lap time: %d", (int)(t * 100));
-    save_lap_time(t);
+    save_lap_time(t, true);
 }
 
 void update_stopwatch() {
@@ -301,42 +307,56 @@ void shift_lap_layer(PropertyAnimation** animation, Layer* layer, GRect* target,
     GRect origin = layer_get_frame(layer);
     *target = origin;
     target->origin.y += target->size.h * distance_multiplier;
-	*animation = property_animation_create_layer_frame(layer, NULL, target);
-    animation_set_duration((Animation*)*animation, 250);
-    animation_set_curve((Animation*)*animation, AnimationCurveLinear);
-    animation_set_handlers((Animation*)*animation, (AnimationHandlers){
-        .stopped = (AnimationStoppedHandler)animation_stopped
-    }, NULL);
+	if(animation != NULL) {
+		*animation = property_animation_create_layer_frame(layer, NULL, target);
+		animation_set_duration((Animation*)*animation, 250);
+		animation_set_curve((Animation*)*animation, AnimationCurveLinear);
+		animation_set_handlers((Animation*)*animation, (AnimationHandlers){
+			.stopped = (AnimationStoppedHandler)animation_stopped
+		}, NULL);
+	} else {
+		layer_set_frame(layer, *target);
+	}
 }
 
-void save_lap_time(double lap_time) {
-    if(busy_animating) return;
+void save_lap_time(double lap_time, bool animate) {
+    if(busy_animating && animate) return;
 
     static PropertyAnimation* animations[LAP_TIME_SIZE];
     static GRect targets[LAP_TIME_SIZE];
 
     // Shift them down visually (assuming they actually exist)
-    busy_animating = LAP_TIME_SIZE;
-    for(int i = 0; i < LAP_TIME_SIZE; ++i) {
-        if(i == next_lap_layer) continue; // This is handled separately.
-        shift_lap_layer(&animations[i], (Layer*)lap_layers[i], &targets[i], 1);
-        animation_schedule((Animation*)animations[i]);
-    }
+	if(animate) {
+		busy_animating = LAP_TIME_SIZE;
+		for(int i = 0; i < LAP_TIME_SIZE; ++i) {
+			if(i == next_lap_layer) continue; // This is handled separately.
+			shift_lap_layer(&animations[i], (Layer*)lap_layers[i], &targets[i], 1);
+			animation_schedule((Animation*)animations[i]);
+		}
+	} else {
+		for(int i = 0; i < LAP_TIME_SIZE; ++i) {
+			if(i == next_lap_layer) continue; // This is handled separately.
+			shift_lap_layer(NULL, (Layer*)lap_layers[i], &targets[i], 1);
+		}
+	}
 
     // Once those are done we can slide our new lap time in.
     format_lap(lap_time, lap_times[next_lap_layer]);
 
     // Animate it
     static PropertyAnimation* entry_animation;
-    //static GRect origin; origin = ;
-    //static GRect target; target = ;
-    entry_animation = property_animation_create_layer_frame((Layer*)lap_layers[next_lap_layer], &GRect(-139, 52, 139, 26), &GRect(5, 52, 139, 26));
-    animation_set_curve((Animation*)entry_animation, AnimationCurveEaseOut);
-    animation_set_delay((Animation*)entry_animation, 50);
-    animation_set_handlers((Animation*)entry_animation, (AnimationHandlers){
-        .stopped = (AnimationStoppedHandler)animation_stopped
-    }, NULL);
-    animation_schedule((Animation*)entry_animation);
+	
+	if(animate) {
+		entry_animation = property_animation_create_layer_frame((Layer*)lap_layers[next_lap_layer], &GRect(-139, 52, 139, 26), &GRect(5, 52, 139, 26));
+		animation_set_curve((Animation*)entry_animation, AnimationCurveEaseOut);
+		animation_set_delay((Animation*)entry_animation, 50);
+		animation_set_handlers((Animation*)entry_animation, (AnimationHandlers){
+			.stopped = (AnimationStoppedHandler)animation_stopped
+		}, NULL);
+		animation_schedule((Animation*)entry_animation);
+	} else {
+		layer_set_frame((Layer*)lap_layers[next_lap_layer], GRect(5, 52, 139, 26));
+	}
     next_lap_layer = (next_lap_layer + 1) % LAP_TIME_SIZE;
 
     // Get it into the laps window, too.

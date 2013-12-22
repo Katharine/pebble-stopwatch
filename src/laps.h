@@ -26,3 +26,7 @@ void show_laps();
 void store_lap_time(double t);
 void clear_stored_laps();
 void deinit_lap_window();
+
+typedef void (*LapRestoredCallback)(double time);
+status_t persist_laps();
+void restore_laps(LapRestoredCallback callback);

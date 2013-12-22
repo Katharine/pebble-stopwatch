@@ -35,6 +35,7 @@ static TextLayer* no_laps_note;
 
 static TextLayer* lap_layers[MAX_LAPS];
 static char lap_text[MAX_LAPS][LAP_STRING_LENGTH];
+static double lap_times[MAX_LAPS];
 static int time_ring_head = 0;
 static int time_ring_length = 0;
 static int times_displayed = 0;
@@ -58,6 +59,7 @@ void init_lap_window() {
 
     for(int i = 0; i < MAX_LAPS; ++i) {
         memcpy(lap_text[i], " 1) 12:34:56.7", LAP_STRING_LENGTH);
+		lap_times[i] = 0.0;
 
 		lap_layers[i] = text_layer_create(GRect(0, i * 22, 144, 22));
         text_layer_set_background_color(lap_layers[i], GColorClear);
@@ -110,6 +112,7 @@ void store_lap_time(double lap_time) {
     }
     for(int i = MAX_LAPS - 1; i > 0; --i) {
         memcpy(lap_text[i], lap_text[i-1], LAP_STRING_LENGTH);
+		lap_times[i] = lap_times[i-1];
         layer_mark_dirty((Layer*)lap_layers[i]);
     }
 	int tenths = (int)(lap_time * 10) % 10;
@@ -117,6 +120,7 @@ void store_lap_time(double lap_time) {
     int minutes = (int)lap_time / 60 % 60;
     int hours = (int)lap_time / 3600;
     snprintf(lap_text[0], 15, "%2d) %02d:%02d:%02d.%d", ++total_laps, hours, minutes, seconds, tenths);
+	lap_times[0] = lap_time;
     format_lap(lap_time, &lap_text[0][4]);
     text_layer_set_text(lap_layers[0], lap_text[0]);
 }
@@ -133,4 +137,34 @@ void clear_stored_laps() {
 
 void handle_appear(Window *window) {
     scroll_layer_set_content_offset(scroll_view, GPoint(0, 0), false);
+}
+
+struct LapData {
+	int times_displayed;
+	int total_laps;
+	double lap_times[MAX_LAPS];
+} __attribute__((__packed__));
+
+status_t persist_laps() {
+	struct LapData data = (struct LapData){
+		.times_displayed = times_displayed,
+		.total_laps = total_laps
+	};
+	memcpy(data.lap_times, lap_times, sizeof(lap_times));
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Persisting %d laps (of %d total).", data.times_displayed, data.total_laps);
+	return persist_write_data(PERSIST_LAPS, &data, sizeof(data));
+}
+
+void restore_laps(LapRestoredCallback callback) {
+	struct LapData data;
+	if(persist_read_data(PERSIST_LAPS, &data, sizeof(data)) != E_DOES_NOT_EXIST) {
+		// This is basically an ugly hack because I don't care enough for it to not be.
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Restoring %d laps (of %d total).", data.times_displayed, data.total_laps);
+		total_laps = data.total_laps - data.times_displayed;
+		for(int i = data.times_displayed - 1; i >= 0; --i) {
+			callback(data.lap_times[i]);
+		}
+	} else {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "No persisted lap data found.");
+	}
 }
