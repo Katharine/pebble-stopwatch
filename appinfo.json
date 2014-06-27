@@ -1,14 +1,11 @@
 {
-    "versionLabel": "2.0",
     "uuid": "11a1cb08-065f-491e-82c4-83b9f9cb042c",
-    "appKeys": {},
-    "longName": "Stopwatch",
-    "versionCode": 2,
-    "capabilities": [
-        ""
-    ],
     "shortName": "Stopwatch",
+    "longName": "Stopwatch",
     "companyName": "Katharine Berry",
+    "appKeys": {},
+    "versionCode": 2,
+    "versionLabel": "2.0.0",
     "watchapp": {
         "watchface": false
     },
