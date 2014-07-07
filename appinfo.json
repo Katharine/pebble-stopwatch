@@ -1,48 +1,48 @@
 {
-    "versionLabel": "2.0",
-    "uuid": "11a1cb08-065f-491e-82c4-83b9f9cb042c",
     "appKeys": {},
-    "longName": "Stopwatch",
-    "versionCode": 2,
     "capabilities": [
         ""
     ],
-    "shortName": "Stopwatch",
     "companyName": "Katharine Berry",
-    "watchapp": {
-        "watchface": false
-    },
+    "longName": "Stopwatch",
     "resources": {
         "media": [
             {
+                "characterRegex": "[:0-9]",
+                "file": "fonts/DejaVuSans-Bold.ttf",
+                "name": "FONT_DEJAVU_SANS_BOLD_SUBSET_30",
+                "type": "font"
+            },
+            {
                 "characterRegex": "[:0-9. )Nolapsyet]",
-                "type": "font",
+                "file": "fonts/DejaVuSans.ttf",
                 "name": "FONT_DEJAVU_SANS_SUBSET_18",
-                "file": "fonts/DejaVuSans.ttf"
+                "type": "font"
             },
             {
                 "characterRegex": "[:0-9. ]",
-                "type": "font",
+                "file": "fonts/DejaVuSans.ttf",
                 "name": "FONT_DEJAVU_SANS_SUBSET_22",
-                "file": "fonts/DejaVuSans.ttf"
+                "type": "font"
             },
             {
-                "characterRegex": "[:0-9]",
-                "type": "font",
-                "name": "FONT_DEJAVU_SANS_BOLD_SUBSET_30",
-                "file": "fonts/DejaVuSans-Bold.ttf"
-            },
-            {
-                "menuIcon": true,
-                "type": "png",
-                "name": "IMAGE_MENU_ICON",
-                "file": "images/stopwatch.png"
-            },
-            {
-                "type": "png",
+                "file": "images/buttons.png",
                 "name": "IMAGE_BUTTON_LABELS",
-                "file": "images/buttons.png"
+                "type": "png"
+            },
+            {
+                "file": "images/stopwatch.png",
+                "menuIcon": true,
+                "name": "IMAGE_MENU_ICON",
+                "type": "png"
             }
         ]
+    },
+    "shortName": "Stopwatch",
+    "uuid": "11a1cb08-065f-491e-82c4-83b9f9cb042c",
+    "versionCode": 2,
+    "versionLabel": "2.0",
+    "watchapp": {
+        "watchface": false
     }
 }
